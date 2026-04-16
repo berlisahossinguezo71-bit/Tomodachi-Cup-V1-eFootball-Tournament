@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>TOMODACHI eFOOTBALL CUP</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Black+Han+Sans&display=swap" rel="stylesheet">
+<style>
+  /* ========== STYLES (IDENTIQUES À LA VERSION PRÉCÉDENTE) ========== */
+  /* Pour garder la réponse compacte, je ne répète pas tout le CSS ici. */
+  /* COPIE-COLLE TOUT LE CSS DE MA RÉPONSE PRÉCÉDENTE (celui avec le thème mélangé) */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; min-height: 100vh; font-family: 'Rajdhani', sans-serif; color: #fff; padding: 24px 16px 40px; }
+  /* ... TOUT LE RESTE DU CSS ... */
+</style>
+</head>
+<body>
+
+<!-- FENÊTRE DE MOT DE PASSE -->
+<div class="password-overlay" id="passwordOverlay">
+  <div class="password-box">
+    <div class="logo-mini">TOMODACHI</div>
+    <h2>🔐 ACCÈS JOUEUR</h2>
+    <p>Entre ton code d'invitation unique<br>pour accéder au formulaire</p>
+    <input type="text" class="password-input" id="passwordInput" placeholder="XXXX-XXXX" maxlength="9" autocomplete="off" spellcheck="false">
+    <button class="password-btn" onclick="checkCode()">DÉVERROUILLER</button>
+    <div class="password-error" id="passwordError">Code invalide ou déjà utilisé</div>
+    <div class="password-info">Contacte l'organisateur pour obtenir ton code</div>
+  </div>
+</div>
+
+<!-- CONTENU PRINCIPAL -->
+<div class="main-content" id="mainContent">
+
+  <!-- LOGO -->
+  <div class="logo-section">
+    <div class="logo-wrapper">
+      <div class="logo-glow"></div>
+      <div class="logo-main">TOMODACHI</div>
+      <div class="logo-sub">
+        <div class="logo-line"></div>
+        <div class="logo-esport">e-sport</div>
+        <div class="logo-line-right"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-badge">⚡ INSCRIPTIONS SUR INVITATION ⚡</div>
+    <div class="header-title">🏆 <span>eFOOTBALL CUP</span></div>
+    <div class="header-sub">eFootball Mobile · Élimination directe</div>
+  </div>
+
+  <!-- COUNTER -->
+  <div class="counter-bar">
+    <div>
+      <div class="counter-label">Places prises</div>
+      <div class="counter-value"><span id="countVal">0</span> <span>/ 32</span></div>
+      <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+    <div style="font-size:32px;">⚔️</div>
+  </div>
+
+  <!-- FULL MESSAGE -->
+  <div class="msg-full" id="msgFull">🔒 TOURNOI COMPLET – 32/32 INSCRITS</div>
+
+  <!-- FORM -->
+  <div class="form-card" id="formCard">
+    <div class="form-title">✍️ Mon inscription</div>
+    <div class="form-group">
+      <label class="form-label" for="inputPseudo">🎮 Pseudo en jeu</label>
+      <input class="form-input" type="text" id="inputPseudo" placeholder="ex: CR7_King99" maxlength="30">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="inputWa">📱 Numéro WhatsApp</label>
+      <input class="form-input" type="tel" id="inputWa" placeholder="ex: +221 77 000 00 00" maxlength="20">
+    </div>
+    <div class="msg-error" id="msgError">⚠️ Remplis tous les champs correctement.</div>
+    <button class="btn-submit" id="btnSubmit">⚡ S'INSCRIRE AU TOURNOI</button>
+  </div>
+
+  <!-- LIST -->
+  <div class="list-section">
+    <div class="list-header">
+      <div class="list-header-title">🏅 Liste des participants</div>
+      <div class="list-header-line"></div>
+    </div>
+    <div id="participantList">
+      <div class="empty-state" id="emptyState">
+        <span class="empty-icon">📋</span>
+        Aucun inscrit pour l'instant.<br>Sois le premier !
+      </div>
+    </div>
+  </div>
+
+  <!-- SHARE -->
+  <button class="btn-share" onclick="shareList()">
+    <span>📤</span> PARTAGER LA LISTE
+  </button>
+
+  <!-- SECTION ADMIN (visible uniquement pour toi) -->
+  <div class="admin-section" id="adminSection" style="display: none;">
+    <button class="btn-reset" onclick="adminReset()">⟲ Réinitialiser le tournoi</button>
+  </div>
+
+</div>
+
+<script>
+  // ==========================================
+  // CONFIGURATION
+  // ==========================================
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxsAU724P1hrS0ID5nJt6y5jny5sSvx4I9bpaHBHY_Cg6t3ggfgSn6tOV-KI_cdHEde/exec'; // <-- REMPLACE ICI
+  const MAX = 32;
+  const ADMIN_CODE = 'TOMOADMIN2026'; // Ton code admin secret
+  
+  // Variable pour savoir si l'utilisateur est admin
+  let isAdmin = false;
+  
+  // ==========================================
+  // GESTION DES CODES UNIQUES
+  // ==========================================
+  let validCodes = [];
+  let usedCodes = [];
+  
+  function generateCodes() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const codes = [];
+    for (let i = 0; i < MAX; i++) {
+      let code = '';
+      for (let j = 0; j < 4; j++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += '-';
+      for (let j = 0; j < 4; j++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+      codes.push(code);
+    }
+    return codes;
+  }
+  
+  function initCodes() {
+    const savedCodes = localStorage.getItem('tomodachi_v2_valid_codes');
+    const savedUsed = localStorage.getItem('tomodachi_v2_used_codes');
+    
+    if (savedCodes) {
+      validCodes = JSON.parse(savedCodes);
+    } else {
+      validCodes = generateCodes();
+      localStorage.setItem('tomodachi_v2_valid_codes', JSON.stringify(validCodes));
+    }
+    
+    if (savedUsed) {
+      usedCodes = JSON.parse(savedUsed);
+    } else {
+      usedCodes = [];
+      localStorage.setItem('tomodachi_v2_used_codes', JSON.stringify(usedCodes));
+    }
+  }
+  
+  function displayCodesForAdmin() {
+    console.log('=== CODES D\'INVITATION TOMODACHI V2 ===');
+    console.log('Codes disponibles :');
+    validCodes.forEach((code, i) => {
+      const status = usedCodes.includes(code) ? '❌ UTILISÉ' : '✅ DISPONIBLE';
+      console.log(`${i+1}. ${code} - ${status}`);
+    });
+    console.log('========================================');
+  }
+  
+  function checkCode() {
+    const input = document.getElementById('passwordInput');
+    const error = document.getElementById('passwordError');
+    const code = input.value.toUpperCase().trim();
+    
+    // Vérifier si c'est le code admin
+    if (code === ADMIN_CODE) {
+      isAdmin = true;
+      document.getElementById('passwordOverlay').classList.add('hidden');
+      document.getElementById('mainContent').classList.add('unlocked');
+      document.getElementById('adminSection').style.display = 'block';
+      sessionStorage.setItem('tomodachi_v2_unlocked', 'true');
+      sessionStorage.setItem('tomodachi_v2_is_admin', 'true');
+      console.log('🔓 MODE ADMIN ACTIF');
+      return;
+    }
+    
+    // Vérifier code joueur normal
+    if (validCodes.includes(code) && !usedCodes.includes(code)) {
+      usedCodes.push(code);
+      localStorage.setItem('tomodachi_v2_used_codes', JSON.stringify(usedCodes));
+      
+      document.getElementById('passwordOverlay').classList.add('hidden');
+      document.getElementById('mainContent').classList.add('unlocked');
+      sessionStorage.setItem('tomodachi_v2_unlocked', 'true');
+      sessionStorage.setItem('tomodachi_v2_used_code', code);
+      
+      displayCodesForAdmin();
+    } else {
+      error.style.display = 'block';
+      input.value = '';
+      input.focus();
+    }
+  }
+  
+  // Restauration session
+  if (sessionStorage.getItem('tomodachi_v2_unlocked') === 'true') {
+    document.getElementById('passwordOverlay').classList.add('hidden');
+    document.getElementById('mainContent').classList.add('unlocked');
+    if (sessionStorage.getItem('tomodachi_v2_is_admin') === 'true') {
+      isAdmin = true;
+      document.getElementById('adminSection').style.display = 'block';
+    }
+  }
+  
+  document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') checkCode();
+  });
+
+  // ==========================================
+  // GESTION DES PARTICIPANTS
+  // ==========================================
+  let participants = [];
+  let isLoading = false;
+
+  async function fetchParticipants() {
+    try {
+      showLoading(true);
+      const response = await fetch(SCRIPT_URL);
+      const data = await response.json();
+      participants = data;
+      render();
+    } catch (error) {
+      console.error('Erreur chargement:', error);
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  function showLoading(state) {
+    isLoading = state;
+    const btn = document.getElementById('btnSubmit');
+    if (state) {
+      btn.innerHTML = '<span class="loading-spinner"></span> CHARGEMENT...';
+      btn.disabled = true;
+    } else {
+      btn.innerHTML = '⚡ S\'INSCRIRE AU TOURNOI';
+      btn.disabled = false;
+    }
+  }
+
+  async function addParticipant() {
+    if (isLoading) return;
+    
+    const pseudo = document.getElementById('inputPseudo').value.trim();
+    const wa = document.getElementById('inputWa').value.trim();
+    const err = document.getElementById('msgError');
+
+    if (!pseudo || !wa || wa.length < 6) {
+      err.style.display = 'block';
+      err.textContent = '⚠️ Remplis tous les champs correctement.';
+      return;
+    }
+
+    if (participants.length >= MAX) {
+      err.style.display = 'block';
+      err.textContent = '⚠️ Le tournoi est complet.';
+      return;
+    }
+
+    if (participants.some(p => p.pseudo.toLowerCase() === pseudo.toLowerCase())) {
+      err.textContent = '⚠️ Ce pseudo est déjà inscrit.';
+      err.style.display = 'block';
+      return;
+    }
+
+    err.style.display = 'none';
+    isLoading = true;
+    const btn = document.getElementById('btnSubmit');
+    btn.innerHTML = '<span class="loading-spinner"></span> INSCRIPTION...';
+    btn.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append('pseudo', pseudo);
+      formData.append('wa', wa);
+      formData.append('action', 'add');
+
+      const response = await fetch(SCRIPT_URL, { method: 'POST', body: formData });
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        await fetchParticipants();
+        document.getElementById('inputPseudo').value = '';
+        document.getElementById('inputWa').value = '';
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      alert('Erreur: ' + error.message);
+    } finally {
+      isLoading = false;
+      btn.innerHTML = '⚡ S\'INSCRIRE AU TOURNOI';
+      btn.disabled = false;
+    }
+  }
+
+  async function removeParticipant(index) {
+    // 🔒 PROTECTION : Seul l'admin peut retirer
+    if (!isAdmin) {
+      alert('⛔ Action réservée à l\'administrateur.');
+      return;
+    }
+    
+    const p = participants[index];
+    if (!confirm(`[ADMIN] Retirer "${p.pseudo}" de la liste ?`)) return;
+    
+    try {
+      const formData = new FormData();
+      formData.append('pseudo', p.pseudo);
+      formData.append('action', 'remove');
+      
+      await fetch(SCRIPT_URL, { method: 'POST', body: formData });
+      await fetchParticipants();
+    } catch (error) {
+      alert('Erreur suppression');
+    }
+  }
+
+  function render() {
+    const list = document.getElementById('participantList');
+    const empty = document.getElementById('emptyState');
+    const count = participants.length;
+
+    document.getElementById('countVal').textContent = count;
+    document.getElementById('progressFill').style.width = (count / MAX * 100) + '%';
+
+    const full = count >= MAX;
+    document.getElementById('msgFull').style.display = full ? 'block' : 'none';
+    document.getElementById('formCard').style.display = full ? 'none' : 'block';
+
+    if (count === 0) {
+      list.innerHTML = '';
+      empty.innerHTML = '<span class="empty-icon">📋</span> Aucun inscrit pour l\'instant.<br>Sois le premier !';
+      list.appendChild(empty);
+      return;
+    }
+
+    list.innerHTML = '';
+    participants.forEach((p, i) => {
+      const item = document.createElement('div');
+      item.className = 'participant-item';
+      item.innerHTML = `
+        <div class="participant-num">${String(i + 1).padStart(2, '0')}</div>
+        <div class="participant-info">
+          <div class="participant-pseudo">🎮 ${escHtml(p.pseudo)}</div>
+          <div class="participant-wa">📱 ${escHtml(p.wa)}</div>
+        </div>
+        ${isAdmin ? `<button class="participant-remove" data-index="${i}" title="[ADMIN] Retirer">✕</button>` : ''}
+      `;
+      
+      if (isAdmin) {
+        const btn = item.querySelector('.participant-remove');
+        btn.addEventListener('click', () => removeParticipant(i));
+      }
+      
+      list.appendChild(item);
+    });
+  }
+
+  function escHtml(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  
+  function shareList() {
+    if (participants.length === 0) {
+      alert('Aucun inscrit à partager pour l\'instant.');
+      return;
+    }
+    let text = '🏆 *TOMODACHI eFOOTBALL CUP*\n';
+    text += '⚔️ Liste des participants\n';
+    text += '─────────────────────\n';
+    participants.forEach((p, i) => {
+      text += `${String(i+1).padStart(2,'0')}. 🎮 ${p.pseudo}  📱 ${p.wa}\n`;
+    });
+    text += '─────────────────────\n';
+    text += `✅ ${participants.length}/32 inscrits\n`;
+    
+    if (navigator.share) {
+      navigator.share({ text });
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => alert('✅ Liste copiée !'));
+    } else {
+      alert(text);
+    }
+  }
+
+  async function adminReset() {
+    if (!isAdmin) {
+      alert('⛔ Accès refusé.');
+      return;
+    }
+    
+    if (!confirm('⚠️ [ADMIN] Réinitialiser le tournoi ?\n\n- Nouveaux codes générés\n- Liste des participants VIDÉE\n\nCette action est IRRÉVERSIBLE.')) {
+      return;
+    }
+    
+    validCodes = generateCodes();
+    usedCodes = [];
+    localStorage.setItem('tomodachi_v2_valid_codes', JSON.stringify(validCodes));
+    localStorage.setItem('tomodachi_v2_used_codes', JSON.stringify(usedCodes));
+    
+    try {
+      const formData = new FormData();
+      formData.append('action', 'clear');
+      await fetch(SCRIPT_URL, { method: 'POST', body: formData });
+    } catch (e) {
+      console.error('Erreur vidage:', e);
+    }
+    
+    sessionStorage.clear();
+    location.reload();
+    
+    console.log('✅ NOUVEAU TOURNOI INITIALISÉ');
+    displayCodesForAdmin();
+  }
+
+  // ==========================================
+  // INITIALISATION
+  // ==========================================
+  initCodes();
+  fetchParticipants();
+  
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.getElementById('mainContent').classList.contains('unlocked')) {
+      addParticipant();
+    }
+  });
+  document.getElementById('btnSubmit').addEventListener('click', addParticipant);
+  
+  console.log('%c👑 TOMODACHI ADMIN V2', 'font-size: 20px; color: #ffd700; font-weight: bold;');
+  console.log('%cCommandes :', 'font-size: 14px; color: #00f2fe;');
+  console.log('%c  - Code admin : TOMOADMIN2026', 'color: #ffd700;');
+  console.log('%c  - displayCodesForAdmin() : Voir tous les codes', 'color: #aaa;');
+  displayCodesForAdmin();
+</script>
+</body>
+</html>
